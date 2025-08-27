@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Student Attendance</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 30px; }
+    h2 { color: #0073e6; }
+    input, button { padding: 10px; margin: 10px; width: 80%; max-width: 300px; }
+    #status { margin-top: 20px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h2>📍 Student Attendance</h2>
+  <p>Please enter your details and allow location access.</p>
+
+  <input type="text" id="name" placeholder="Enter Name" required><br>
+  <input type="text" id="studentID" placeholder="Enter Student ID" required><br>
+  <input type="text" id="cpr" placeholder="Enter CPR" required><br>
+  <button onclick="markAttendance()">Mark Attendance</button>
+
+  <p id="status"></p>
+
+  <script>
+    function markAttendance() {
+      let name = document.getElementById("name").value;
+      let studentID = document.getElementById("studentID").value;
+      let cpr = document.getElementById("cpr").value;
+
+      if (!name || !studentID || !cpr) {
+        alert("Please fill all fields.");
+        return;
+      }
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(position) {
+          let lat = position.coords.latitude;
+          let lon = position.coords.longitude;
+
+          // Office coordinates
+          let officeLat = 26.27555;
+          let officeLon = 50.63767;
+
+          // Calculate rough distance
+          let distance = Math.sqrt(Math.pow(lat - officeLat, 2) + Math.pow(lon - officeLon, 2));
+
+          if (distance < 0.001) { // ~100m accuracy
+            document.getElementById("status").innerHTML = "✅ Attendance Marked Successfully!";
+            saveAttendance(name, studentID, cpr, lat, lon);
+          } else {
+            document.getElementById("status").innerHTML = "❌ You are not inside the office!";
+          }
+        });
+      } else {
+        alert("Geolocation not supported in this browser.");
+      }
+    }
+
+    function saveAttendance(name, id, cpr, lat, lon) {
+      let url = https://script.google.com/macros/s/AKfycbxpi7C8UkAVwRWJu-gmu6FLS2vRhqRA1q4c8Iu5xxMfzwUFaOs4QB_iVJQS37w6UEy7wA/exec
+
+      fetch(url, {
+        method: "POST",
+        body: JSON.stringify({
+          name: name,
+          id: id,
+          cpr: cpr,
+          lat: lat,
+          lon: lon
+        }),
+        headers: { "Content-Type": "application/json" }
+      })
+      .then(res => res.text())
+      .then(res => console.log(res))
+      .catch(err => console.error(err));
+    }
+  </script>
+</body>
+</html>
