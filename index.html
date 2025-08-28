@@ -11,9 +11,7 @@
       padding: 10px; margin: 10px; width: 80%; max-width: 300px;
       border-radius: 5px; border: 1px solid #ccc; font-size: 16px;
     }
-    button {
-      background: #0073e6; color: white; border: none; cursor: pointer;
-    }
+    button { background: #0073e6; color: white; border: none; cursor: pointer; }
     button:hover { background: #005bb5; }
     #status { margin-top: 20px; font-weight: bold; }
   </style>
@@ -32,24 +30,28 @@
   <script>
     const OFFICE_LAT = 26.27555;
     const OFFICE_LON = 50.63767;
-    const RANGE_METERS = 50; // ✅ 50m range
+    const RANGE_METERS = 100; // ✅ 100m range
 
     function markAttendance() {
-      let name = document.getElementById("name").value.trim();
-      let studentID = document.getElementById("studentID").value.trim();
-      let cpr = document.getElementById("cpr").value.trim();
+      const name = document.getElementById("name").value.trim();
+      const studentID = document.getElementById("studentID").value.trim();
+      const cpr = document.getElementById("cpr").value.trim();
 
       if (!name || !studentID || !cpr) {
         alert("Please fill all fields.");
         return;
       }
 
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(function(position) {
-          let lat = position.coords.latitude;
-          let lon = position.coords.longitude;
+      if (!navigator.geolocation) {
+        alert("Geolocation not supported in this browser.");
+        return;
+      }
 
-          let distance = getDistanceFromLatLon(lat, lon, OFFICE_LAT, OFFICE_LON);
+      navigator.geolocation.getCurrentPosition(
+        function (position) {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          const distance = getDistanceFromLatLon(lat, lon, OFFICE_LAT, OFFICE_LON);
 
           if (distance <= RANGE_METERS) {
             document.getElementById("status").innerHTML = "✅ Attendance Marked Successfully!";
@@ -58,31 +60,30 @@
             document.getElementById("status").innerHTML =
               "❌ You are outside the office range (" + Math.round(distance) + " m away)";
           }
-
-        }, function(error) {
+        },
+        function () {
           document.getElementById("status").innerHTML = "❌ Location access denied.";
-        });
-      } else {
-        alert("Geolocation not supported in this browser.");
-      }
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
     }
 
     // Haversine formula (meters)
     function getDistanceFromLatLon(lat1, lon1, lat2, lon2) {
-      function deg2rad(deg) { return deg * (Math.PI/180); }
-      const R = 6371000; // Earth radius in meters
-      let dLat = deg2rad(lat2-lat1);
-      let dLon = deg2rad(lon2-lon1);
-      let a =
-        Math.sin(dLat/2) * Math.sin(dLat/2) +
-        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
-        Math.sin(dLon/2) * Math.sin(dLon/2);
-      let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      return R * c; // meters
+      const R = 6371000; // meters
+      const toRad = d => d * Math.PI / 180;
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
     }
 
     function saveAttendance(name, id, cpr, lat, lon) {
-      let url = "https://script.google.com/macros/s/AKfycbxpi7C8UkAVwRWJu-gmu6FLS2vRhqRA1q4c8Iu5xxMfzwUFaOs4QB_iVJQS37w6UEy7wA/exec";
+      const url = "https://script.google.com/macros/s/AKfycbxpi7C8UkAVwRWJu-gmu6FLS2vRhqRA1q4c8Iu5xxMfzwUFaOs4QB_iVJQS37w6UEy7wA/exec";
 
       fetch(url, {
         method: "POST",
