@@ -7,30 +7,73 @@
   <style>
     body { font-family: Arial, sans-serif; text-align: center; padding: 30px; background: #f4f9ff; }
     h2 { color: #0073e6; }
-    input, button {
+    input, button, select {
       padding: 10px; margin: 10px; width: 80%; max-width: 300px;
       border-radius: 5px; border: 1px solid #ccc; font-size: 16px;
     }
     button { background: #0073e6; color: white; border: none; cursor: pointer; }
     button:hover { background: #005bb5; }
     #status { margin-top: 20px; font-weight: bold; }
+    table { margin: 20px auto; border-collapse: collapse; width: 90%; max-width: 700px; }
+    th, td { border: 1px solid #ccc; padding: 8px; }
+    th { background: #0073e6; color: white; }
   </style>
 </head>
 <body>
   <h2>📍 Student Attendance</h2>
   <p>Please enter your details and allow location access.</p>
 
+  <!-- Student Form -->
   <input type="text" id="name" placeholder="Enter Name" required><br>
   <input type="text" id="studentID" placeholder="Enter Student ID" required><br>
   <input type="text" id="cpr" placeholder="Enter CPR" required><br>
   <button onclick="markAttendance()">Mark Attendance</button>
-
   <p id="status"></p>
 
+  <hr>
+
+  <!-- Teacher Section -->
+  <h3>📊 Teacher View</h3>
+  <label for="monthSelect">Select Month:</label>
+  <select id="monthSelect"></select>
+  <button onclick="loadAttendance()">Load Records</button>
+  <button onclick="exportCSV()">Export CSV</button>
+
+  <table id="attendanceTable">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Student ID</th>
+        <th>CPR</th>
+        <th>Latitude</th>
+        <th>Longitude</th>
+        <th>Timestamp</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <!-- ✅ Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
   <script>
-    const OFFICE_LAT = 26.2755686000;
-    const OFFICE_LON = 50.6376655555;
-    const RANGE_METERS = 150; // ✅ 100m range
+    // ✅ Replace with your Firebase config
+    const firebaseConfig = {
+  apiKey: "AIzaSyDNYD4ePIvBsAwtED7XcubEnm_waowsBZU",
+  authDomain: "student-attendance-54a24.firebaseapp.com",
+  projectId: "student-attendance-54a24",
+  storageBucket: "student-attendance-54a24.firebasestorage.app",
+  messagingSenderId: "20815223762",
+  appId: "1:20815223762:web:f5d8b79ee3d47b2739460b",
+  measurementId: "G-DYPDLZYJ83"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const OFFICE_LAT = 26.2755686;
+    const OFFICE_LON = 50.6376656;
+    const RANGE_METERS = 150;
 
     function markAttendance() {
       const name = document.getElementById("name").value.trim();
@@ -68,9 +111,8 @@
       );
     }
 
-    // Haversine formula (meters)
     function getDistanceFromLatLon(lat1, lon1, lat2, lon2) {
-      const R = 6371000; // meters
+      const R = 6371000;
       const toRad = d => d * Math.PI / 180;
       const dLat = toRad(lat2 - lat1);
       const dLon = toRad(lon2 - lon1);
@@ -82,26 +124,84 @@
       return R * c;
     }
 
+    // ✅ Save attendance in Firebase Firestore
     function saveAttendance(name, id, cpr, lat, lon) {
-      const url = "https://script.google.com/macros/s/AKfycbxpi7C8UkAVwRWJu-gmu6FLS2vRhqRA1q4c8Iu5xxMfzwUFaOs4QB_iVJQS37w6UEy7wA/exec";
+      const now = new Date();
+      const month = now.toISOString().slice(0, 7); // YYYY-MM
 
-      fetch(url, {
-        method: "POST",
-        body: JSON.stringify({ name, id, cpr, lat, lon }),
-        headers: { "Content-Type": "application/json" }
+      db.collection("attendance").add({
+        name,
+        studentID: id,
+        cpr,
+        lat,
+        lon,
+        timestamp: firebase.firestore.Timestamp.fromDate(now),
+        month: month
       })
-      .then(res => res.text())
-      .then(res => {
-        console.log("Server says:", res);
-        document.getElementById("status").innerHTML = "✅ Saved to Google Sheet!";
+      .then(() => {
+        document.getElementById("status").innerHTML = "✅ Saved to Firebase!";
       })
-      .catch(err => {
+      .catch((err) => {
         console.error(err);
         document.getElementById("status").innerHTML = "❌ Error saving attendance.";
       });
     }
+
+    // ✅ Teacher: populate month selector
+    window.onload = function() {
+      const select = document.getElementById("monthSelect");
+      const now = new Date();
+      for (let i = 0; i < 12; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const ym = d.toISOString().slice(0, 7);
+        const option = document.createElement("option");
+        option.value = ym;
+        option.textContent = ym;
+        select.appendChild(option);
+      }
+    };
+
+    // ✅ Teacher: load records for selected month
+    function loadAttendance() {
+      const month = document.getElementById("monthSelect").value;
+      const tbody = document.getElementById("attendanceTable").querySelector("tbody");
+      tbody.innerHTML = "";
+
+      db.collection("attendance").where("month", "==", month).orderBy("timestamp", "asc").get()
+      .then(snapshot => {
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const row = `<tr>
+            <td>${data.name}</td>
+            <td>${data.studentID}</td>
+            <td>${data.cpr}</td>
+            <td>${data.lat}</td>
+            <td>${data.lon}</td>
+            <td>${data.timestamp.toDate().toLocaleString()}</td>
+          </tr>`;
+          tbody.innerHTML += row;
+        });
+      });
+    }
+
+    // ✅ Teacher: export records to CSV
+    function exportCSV() {
+      const rows = [];
+      const table = document.getElementById("attendanceTable");
+      for (let row of table.rows) {
+        const cols = [];
+        for (let cell of row.cells) {
+          cols.push(`"${cell.innerText}"`);
+        }
+        rows.push(cols.join(","));
+      }
+      const csvContent = rows.join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "attendance.csv";
+      link.click();
+    }
   </script>
 </body>
 </html>
-
-
