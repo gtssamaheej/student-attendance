@@ -5,9 +5,16 @@
   <title>Student Attendance</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; padding: 30px; }
+    body { font-family: Arial, sans-serif; text-align: center; padding: 30px; background: #f4f9ff; }
     h2 { color: #0073e6; }
-    input, button { padding: 10px; margin: 10px; width: 80%; max-width: 300px; }
+    input, button {
+      padding: 10px; margin: 10px; width: 80%; max-width: 300px;
+      border-radius: 5px; border: 1px solid #ccc; font-size: 16px;
+    }
+    button {
+      background: #0073e6; color: white; border: none; cursor: pointer;
+    }
+    button:hover { background: #005bb5; }
     #status { margin-top: 20px; font-weight: bold; }
   </style>
 </head>
@@ -23,10 +30,14 @@
   <p id="status"></p>
 
   <script>
+    const OFFICE_LAT = 26.27555;
+    const OFFICE_LON = 50.63767;
+    const RANGE_METERS = 50; // ✅ 50m range
+
     function markAttendance() {
-      let name = document.getElementById("name").value;
-      let studentID = document.getElementById("studentID").value;
-      let cpr = document.getElementById("cpr").value;
+      let name = document.getElementById("name").value.trim();
+      let studentID = document.getElementById("studentID").value.trim();
+      let cpr = document.getElementById("cpr").value.trim();
 
       if (!name || !studentID || !cpr) {
         alert("Please fill all fields.");
@@ -38,42 +49,55 @@
           let lat = position.coords.latitude;
           let lon = position.coords.longitude;
 
-          // Office coordinates
-          let officeLat = 26.27555;
-          let officeLon = 50.63767;
+          let distance = getDistanceFromLatLon(lat, lon, OFFICE_LAT, OFFICE_LON);
 
-          // Calculate rough distance
-          let distance = Math.sqrt(Math.pow(lat - officeLat, 2) + Math.pow(lon - officeLon, 2));
-
-          if (distance < 0.001) { // ~100m accuracy
+          if (distance <= RANGE_METERS) {
             document.getElementById("status").innerHTML = "✅ Attendance Marked Successfully!";
             saveAttendance(name, studentID, cpr, lat, lon);
           } else {
-            document.getElementById("status").innerHTML = "❌ You are not inside the office!";
+            document.getElementById("status").innerHTML =
+              "❌ You are outside the office range (" + Math.round(distance) + " m away)";
           }
+
+        }, function(error) {
+          document.getElementById("status").innerHTML = "❌ Location access denied.";
         });
       } else {
         alert("Geolocation not supported in this browser.");
       }
     }
 
+    // Haversine formula (meters)
+    function getDistanceFromLatLon(lat1, lon1, lat2, lon2) {
+      function deg2rad(deg) { return deg * (Math.PI/180); }
+      const R = 6371000; // Earth radius in meters
+      let dLat = deg2rad(lat2-lat1);
+      let dLon = deg2rad(lon2-lon1);
+      let a =
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+      let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c; // meters
+    }
+
     function saveAttendance(name, id, cpr, lat, lon) {
-      let url = https://script.google.com/macros/s/AKfycbxpi7C8UkAVwRWJu-gmu6FLS2vRhqRA1q4c8Iu5xxMfzwUFaOs4QB_iVJQS37w6UEy7wA/exec
+      let url = "https://script.google.com/macros/s/AKfycbxpi7C8UkAVwRWJu-gmu6FLS2vRhqRA1q4c8Iu5xxMfzwUFaOs4QB_iVJQS37w6UEy7wA/exec";
 
       fetch(url, {
         method: "POST",
-        body: JSON.stringify({
-          name: name,
-          id: id,
-          cpr: cpr,
-          lat: lat,
-          lon: lon
-        }),
+        body: JSON.stringify({ name, id, cpr, lat, lon }),
         headers: { "Content-Type": "application/json" }
       })
       .then(res => res.text())
-      .then(res => console.log(res))
-      .catch(err => console.error(err));
+      .then(res => {
+        console.log("Server says:", res);
+        document.getElementById("status").innerHTML = "✅ Saved to Google Sheet!";
+      })
+      .catch(err => {
+        console.error(err);
+        document.getElementById("status").innerHTML = "❌ Error saving attendance.";
+      });
     }
   </script>
 </body>
